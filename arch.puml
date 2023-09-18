@@ -1,0 +1,37 @@
+@startuml
+!include <C4/C4_Container>
+
+Enterprise_Boundary(example, "Basic example for Golang + Open Telemetry with Grafana Cloud") {
+    System_Boundary(services, "Services") {
+            Container(loadGenerator, "Load Generator")
+            Container(fibonacci, "Fibonacci Service")
+            Container_Ext(collector, "OTEL Collector")
+            Container_Ext(promtail, "Promtail")
+    }
+
+    System_Boundary(grafanaCloud, "Grafana Cloud") {
+        Container_Ext(loki, "Loki")
+        Container_Ext(mimir, "Mimir")
+        Container_Ext(tempo, "Tempo")
+        Container_Ext(grafana, "Grafana")
+    }
+
+    Rel(loadGenerator, fibonacci, "")
+    
+    Rel(loadGenerator, collector, "")
+    Rel(fibonacci, collector, "")
+    
+    Rel_Up(promtail, loadGenerator, "")
+    Rel_Up(promtail, fibonacci, "")
+    Rel(promtail, collector, "")
+
+    Rel(collector, loki, "")
+    Rel(collector, mimir, "")
+    Rel(collector, tempo, "")
+
+    Rel(grafana, loki, "")
+    Rel(grafana, mimir, "")
+    Rel(grafana, tempo, "")
+}
+
+@enduml

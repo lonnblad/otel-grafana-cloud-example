@@ -1,0 +1,69 @@
+version: "3"
+
+services:
+
+  load-generator:
+    container_name: load-generator
+    build:
+      dockerfile: ./cmd/load-generator/Dockerfile
+      context: .
+    restart: no
+    environment:
+      - OTEL_EXPORTER_OTLP_ENDPOINT=otel-collector:4317
+      - SERVICE_NAME=load-generator
+      - FIBONACCI_SERVICE_URL=http://fibonacci-service:8080
+    depends_on:
+      otel-collector:
+        condition: service_started
+      promtail:
+        condition: service_started
+      fibonacci-service:
+        condition: service_started
+    labels:
+      logging: "promtail"
+  
+  fibonacci-service:
+    container_name: fibonacci-service
+    build:
+      dockerfile: ./cmd/fibonacci-service/Dockerfile
+      context: .
+    restart: no
+    environment:
+      - OTEL_EXPORTER_OTLP_ENDPOINT=otel-collector:4317
+      - SERVICE_NAME=fibonacci-service
+      - PORT=8080
+    ports:
+      - "8080:8080"
+    depends_on:
+      otel-collector:
+        condition: service_started
+      promtail:
+        condition: service_started
+    labels:
+      logging: "promtail"
+
+  promtail:
+    image:  grafana/promtail:latest
+    container_name: promtail
+    restart: unless-stopped
+    command: ["-config.file=/etc/promtail/docker-config.yaml"]
+    volumes:
+      - ./_config/promtail.yaml:/etc/promtail/docker-config.yaml
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      - /var/run/docker.sock:/var/run/docker.sock
+    depends_on:
+      otel-collector:
+        condition: service_started
+
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib
+    container_name: otel-collector
+    restart: unless-stopped
+    command: ["--config=/etc/otel-collector-config.yaml"]
+    env_file:
+      - ./_config/otel-collector.env
+    volumes:
+      - ./_config/otel-collector-config.yaml:/etc/otel-collector-config.yaml
+    ports:
+      - "4317:4317"
+      - "3500:3500"
